@@ -1,0 +1,75 @@
+#cloud-config
+autoinstall:
+  version: 1
+
+  identity:
+    hostname: ubuntu-corp
+    username: usuario
+    password: "$6$T2/5KPjyWn0a5.vm$41DwyHeSmiK7Uvp4ztFit3aT.FL/lAKK/JnU.WjntvhgKEGASFeEHnpYNX8tOpIEfLCpyejGgJbwvMHY9.YEq0"   
+
+  locale: pt_BR.UTF-8
+  keyboard:
+    layout: br
+    variant: abnt2
+
+  timezone: America/Sao_Paulo
+
+  apt:
+    preserve_sources_list: false
+    primary:
+      - arches: [amd64]
+        uri: http://archive.ubuntu.com/ubuntu
+
+  storage:
+    layout:
+      name: direct
+
+  ssh:
+    install-server: true
+    allow-pw: true
+
+  packages:
+    - rkhunter
+    - aide
+    - auditd
+    - mailutils
+    - postfix
+    - ubuntu-desktop
+    - libreoffice
+    - firefox
+    - atril
+    - net-tools
+    - openssh-server
+    - language-pack-pt
+    - language-pack-gnome-pt
+    - ufw
+    - chkrootkit
+    - policycoreutils
+    - selinux-basics
+    - selinux-policy-default
+
+
+  late-commands:
+    - echo "SELINUX=enforcing" > /target/etc/selinux/config
+    - echo "SELINUXTYPE=default" >> /target/etc/selinux/config
+    - chroot /target selinux-activate
+    - chroot /target selinux-config-enforcing
+    - chroot /target /bin/bash -c 'ufw default deny incoming'
+    - chroot /target /bin/bash -c 'ufw default deny outgoing'
+    - chroot /target /bin/bash -c 'ufw allow out 53'
+    - chroot /target /bin/bash -c 'ufw allow out 80'
+    - chroot /target /bin/bash -c 'ufw allow out 443'
+    - chroot /target /bin/bash -c 'ufw allow in 80'
+    - chroot /target /bin/bash -c 'ufw allow in 443'
+    - chroot /target /bin/bash -c 'ufw enable'
+    - echo "postfix postfix/mailname string ubuntu-corp.local" | chroot /target debconf-set-selections
+    - echo "postfix postfix/main_mailer_type string 'Internet Site'" | chroot /target debconf-set-selections
+    - chroot /target apt-get install -y postfix mailutils
+    - chroot /target /bin/bash -c 'rkhunter --update'
+    - chroot /target /bin/bash -c 'rkhunter --propupd -q'
+    - chroot /target /bin/bash -c 'aideinit'
+    - echo '0 3 * * 0 root /usr/sbin/chkrootkit | mail -s "Relatório chkrootkit" root' > /target/etc/cron.d/chkrootkit
+    - echo '0 4 * * 0 root /usr/bin/rkhunter --check --sk | mail -s "Relatório rkhunter" root' > /target/etc/cron.d/rkhunter
+    - echo '0 5 * * 0 root /usr/bin/aide.wrapper --check | mail -s "Relatório AIDE" root' > /target/etc/cron.d/aide
+    - echo 'usuario ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/usuario
+
